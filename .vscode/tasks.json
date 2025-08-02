@@ -1,0 +1,14 @@
+{
+	"version": "2.0.0",
+	"tasks": [
+		{
+			"label": "Run Flask App",
+			"type": "shell",
+			"command": "/Users/att4ch3d/coding/GIMMEAJOB/.venv/bin/python",
+			"args": ["app.py"],
+			"group": "build",
+			"isBackground": true,
+			"problemMatcher": []
+		}
+	]
+}

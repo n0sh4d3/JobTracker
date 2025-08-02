@@ -1,0 +1,850 @@
+<!DOCTYPE html>
+<html lang="en">
+	<head>
+		<meta charset="UTF-8" />
+		<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+		<title>JobTracker Pro - Dashboard</title>
+		<link
+			href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"
+			rel="stylesheet"
+		/>
+		<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+		<style>
+			* {
+				margin: 0;
+				padding: 0;
+				box-sizing: border-box;
+			}
+
+			body {
+				font-family: "Inter", -apple-system, BlinkMacSystemFont,
+					sans-serif;
+				background: #f8fafc;
+				color: #334155;
+				line-height: 1.6;
+			}
+
+			.navbar {
+				background: white;
+				padding: 1rem 2rem;
+				box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+				display: flex;
+				justify-content: space-between;
+				align-items: center;
+				position: sticky;
+				top: 0;
+				z-index: 100;
+			}
+
+			.logo {
+				display: flex;
+				align-items: center;
+				gap: 10px;
+				font-size: 1.3rem;
+				font-weight: 700;
+				color: #667eea;
+			}
+
+			.user-menu {
+				display: flex;
+				align-items: center;
+				gap: 15px;
+			}
+
+			.user-avatar {
+				width: 40px;
+				height: 40px;
+				background: linear-gradient(135deg, #667eea, #764ba2);
+				border-radius: 50%;
+				display: flex;
+				align-items: center;
+				justify-content: center;
+				color: white;
+				font-weight: 600;
+			}
+
+			.logout-btn {
+				background: #ef4444;
+				color: white;
+				border: none;
+				padding: 8px 16px;
+				border-radius: 8px;
+				cursor: pointer;
+				font-size: 0.9rem;
+				transition: all 0.2s;
+			}
+
+			.logout-btn:hover {
+				background: #dc2626;
+			}
+
+			.container {
+				max-width: 1400px;
+				margin: 0 auto;
+				padding: 2rem;
+			}
+
+			.welcome-section {
+				background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+				color: white;
+				padding: 3rem 2rem;
+				border-radius: 20px;
+				margin-bottom: 2rem;
+				text-align: center;
+			}
+
+			.welcome-section h1 {
+				font-size: 2.5rem;
+				margin-bottom: 0.5rem;
+				font-weight: 700;
+			}
+
+			.welcome-section p {
+				font-size: 1.1rem;
+				opacity: 0.9;
+			}
+
+			.stats-grid {
+				display: grid;
+				grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+				gap: 1.5rem;
+				margin-bottom: 3rem;
+			}
+
+			.stat-card {
+				background: white;
+				padding: 2rem;
+				border-radius: 16px;
+				box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
+				border: 1px solid #e2e8f0;
+				transition: transform 0.2s, box-shadow 0.2s;
+			}
+
+			.stat-card:hover {
+				transform: translateY(-4px);
+				box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
+			}
+
+			.stat-header {
+				display: flex;
+				justify-content: space-between;
+				align-items: center;
+				margin-bottom: 1rem;
+			}
+
+			.stat-icon {
+				width: 50px;
+				height: 50px;
+				border-radius: 12px;
+				display: flex;
+				align-items: center;
+				justify-content: center;
+				font-size: 1.3rem;
+				color: white;
+			}
+
+			.stat-icon.today {
+				background: linear-gradient(135deg, #3b82f6, #1d4ed8);
+			}
+			.stat-icon.week {
+				background: linear-gradient(135deg, #10b981, #047857);
+			}
+			.stat-icon.streak {
+				background: linear-gradient(135deg, #f59e0b, #d97706);
+			}
+			.stat-icon.total {
+				background: linear-gradient(135deg, #8b5cf6, #7c3aed);
+			}
+
+			.stat-number {
+				font-size: 2.5rem;
+				font-weight: 800;
+				color: #1e293b;
+				margin-bottom: 0.5rem;
+			}
+
+			.stat-label {
+				color: #64748b;
+				font-size: 0.9rem;
+				font-weight: 500;
+			}
+
+			.main-content {
+				display: grid;
+				grid-template-columns: 1fr 1fr;
+				gap: 2rem;
+				margin-bottom: 2rem;
+			}
+
+			.card {
+				background: white;
+				border-radius: 16px;
+				padding: 2rem;
+				box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
+				border: 1px solid #e2e8f0;
+			}
+
+			.card-header {
+				display: flex;
+				align-items: center;
+				gap: 12px;
+				margin-bottom: 1.5rem;
+				padding-bottom: 1rem;
+				border-bottom: 1px solid #e2e8f0;
+			}
+
+			.card-header i {
+				font-size: 1.3rem;
+				color: #667eea;
+			}
+
+			.card-header h2 {
+				font-size: 1.4rem;
+				font-weight: 700;
+				color: #1e293b;
+			}
+
+			.form-grid {
+				display: grid;
+				grid-template-columns: 1fr 1fr;
+				gap: 1rem;
+				margin-bottom: 1.5rem;
+			}
+
+			.form-group {
+				margin-bottom: 1.5rem;
+			}
+
+			.form-group.full-width {
+				grid-column: 1 / -1;
+			}
+
+			label {
+				display: block;
+				margin-bottom: 0.5rem;
+				font-weight: 600;
+				color: #374151;
+				font-size: 0.9rem;
+			}
+
+			input[type="number"] {
+				width: 100%;
+				padding: 12px 16px;
+				border: 2px solid #e2e8f0;
+				border-radius: 10px;
+				font-size: 1rem;
+				transition: all 0.2s;
+				background: #f8fafc;
+			}
+
+			input[type="number"]:focus {
+				outline: none;
+				border-color: #667eea;
+				background: white;
+				box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+			}
+
+			.btn {
+				background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+				color: white;
+				border: none;
+				padding: 14px 24px;
+				border-radius: 10px;
+				font-size: 1rem;
+				font-weight: 600;
+				cursor: pointer;
+				transition: all 0.2s;
+				display: flex;
+				align-items: center;
+				justify-content: center;
+				gap: 8px;
+			}
+
+			.btn:hover {
+				transform: translateY(-2px);
+				box-shadow: 0 8px 25px rgba(102, 126, 234, 0.3);
+			}
+
+			.btn.secondary {
+				background: #6b7280;
+				margin-top: 1rem;
+			}
+
+			.btn.secondary:hover {
+				background: #4b5563;
+				box-shadow: 0 8px 25px rgba(107, 114, 128, 0.3);
+			}
+
+			.chart-container {
+				position: relative;
+				height: 350px;
+				margin-top: 1rem;
+			}
+
+			.success-message {
+				background: linear-gradient(135deg, #10b981, #047857);
+				color: white;
+				padding: 1rem;
+				border-radius: 10px;
+				margin-bottom: 1.5rem;
+				display: none;
+				font-weight: 500;
+			}
+
+			.goals-section {
+				margin-top: 2rem;
+				padding-top: 2rem;
+				border-top: 1px solid #e2e8f0;
+			}
+
+			.goals-section h3 {
+				color: #1e293b;
+				margin-bottom: 1rem;
+				font-size: 1.2rem;
+				font-weight: 700;
+			}
+
+			@media (max-width: 768px) {
+				.container {
+					padding: 1rem;
+				}
+
+				.main-content {
+					grid-template-columns: 1fr;
+				}
+
+				.form-grid {
+					grid-template-columns: 1fr;
+				}
+
+				.navbar {
+					padding: 1rem;
+				}
+
+				.welcome-section h1 {
+					font-size: 2rem;
+				}
+			}
+
+			.activity-badges {
+				display: flex;
+				gap: 0.5rem;
+				margin-top: 1rem;
+				flex-wrap: wrap;
+			}
+
+			.badge {
+				background: #f1f5f9;
+				color: #475569;
+				padding: 0.3rem 0.8rem;
+				border-radius: 20px;
+				font-size: 0.8rem;
+				font-weight: 500;
+			}
+
+			.badge.active {
+				background: linear-gradient(135deg, #667eea, #764ba2);
+				color: white;
+			}
+		</style>
+	</head>
+	<body>
+		<nav class="navbar">
+			<div class="logo">
+				<i class="fas fa-briefcase"></i>
+				JobTracker Pro
+			</div>
+			<div class="user-menu">
+				<div class="user-avatar" id="userAvatar"></div>
+				<span id="username"></span>
+				<button class="logout-btn" onclick="logout()">
+					<i class="fas fa-sign-out-alt"></i> Logout
+				</button>
+			</div>
+		</nav>
+
+		<div class="container">
+			<div class="welcome-section">
+				<h1>Welcome back, <span id="welcomeUser"></span>! 🚀</h1>
+				<p>
+					Let's track your job hunting progress and achieve your
+					career goals
+				</p>
+			</div>
+
+			<div class="stats-grid">
+				<div class="stat-card">
+					<div class="stat-header">
+						<div>
+							<div class="stat-number" id="todayStats">0</div>
+							<div class="stat-label">Today's Activities</div>
+						</div>
+						<div class="stat-icon today">
+							<i class="fas fa-calendar-day"></i>
+						</div>
+					</div>
+				</div>
+
+				<div class="stat-card">
+					<div class="stat-header">
+						<div>
+							<div class="stat-number" id="weekStats">0</div>
+							<div class="stat-label">This Week</div>
+						</div>
+						<div class="stat-icon week">
+							<i class="fas fa-calendar-week"></i>
+						</div>
+					</div>
+				</div>
+
+				<div class="stat-card">
+					<div class="stat-header">
+						<div>
+							<div class="stat-number" id="streakStats">0</div>
+							<div class="stat-label">Day Streak</div>
+						</div>
+						<div class="stat-icon streak">
+							<i class="fas fa-fire"></i>
+						</div>
+					</div>
+				</div>
+
+				<div class="stat-card">
+					<div class="stat-header">
+						<div>
+							<div class="stat-number" id="totalStats">0</div>
+							<div class="stat-label">Total Days Logged</div>
+						</div>
+						<div class="stat-icon total">
+							<i class="fas fa-chart-line"></i>
+						</div>
+					</div>
+				</div>
+			</div>
+
+			<div class="main-content">
+				<div class="card">
+					<div class="card-header">
+						<i class="fas fa-plus-circle"></i>
+						<h2>Log Today's Activities</h2>
+					</div>
+
+					<div class="success-message" id="successMessage">
+						🎉 Activities logged successfully! Keep up the great
+						work!
+					</div>
+
+					<form id="activityForm">
+						<div class="form-grid">
+							<div class="form-group">
+								<label for="applications">
+									<i class="fas fa-paper-plane"></i>
+									Applications Sent
+								</label>
+								<input
+									type="number"
+									id="applications"
+									min="0"
+									value="0"
+								/>
+							</div>
+
+							<div class="form-group">
+								<label for="networking">
+									<i class="fas fa-users"></i> Networking
+									Contacts
+								</label>
+								<input
+									type="number"
+									id="networking"
+									min="0"
+									value="0"
+								/>
+							</div>
+
+							<div class="form-group">
+								<label for="skillHours">
+									<i class="fas fa-brain"></i> Skill Practice
+									(Hours)
+								</label>
+								<input
+									type="number"
+									id="skillHours"
+									min="0"
+									step="0.5"
+									value="0"
+								/>
+							</div>
+
+							<div class="form-group">
+								<label for="research">
+									<i class="fas fa-search"></i> Companies
+									Researched
+								</label>
+								<input
+									type="number"
+									id="research"
+									min="0"
+									value="0"
+								/>
+							</div>
+						</div>
+
+						<button type="submit" class="btn">
+							<i class="fas fa-save"></i> Log Activities
+						</button>
+					</form>
+
+					<div class="goals-section">
+						<h3><i class="fas fa-target"></i> Daily Goals</h3>
+						<div class="form-grid">
+							<div class="form-group">
+								<label for="goalApps"
+									>Applications Target</label
+								>
+								<input
+									type="number"
+									id="goalApps"
+									min="0"
+									value="3"
+								/>
+							</div>
+							<div class="form-group">
+								<label for="goalNetwork"
+									>Networking Target</label
+								>
+								<input
+									type="number"
+									id="goalNetwork"
+									min="0"
+									value="2"
+								/>
+							</div>
+							<div class="form-group">
+								<label for="goalSkills"
+									>Skill Hours Target</label
+								>
+								<input
+									type="number"
+									id="goalSkills"
+									min="0"
+									step="0.5"
+									value="1"
+								/>
+							</div>
+							<div class="form-group">
+								<label for="goalResearch"
+									>Research Target</label
+								>
+								<input
+									type="number"
+									id="goalResearch"
+									min="0"
+									value="2"
+								/>
+							</div>
+						</div>
+						<button
+							type="button"
+							class="btn secondary"
+							onclick="setGoals()"
+						>
+							<i class="fas fa-bullseye"></i> Update Goals
+						</button>
+					</div>
+				</div>
+
+				<div class="card">
+					<div class="card-header">
+						<i class="fas fa-chart-bar"></i>
+						<h2>Progress Analytics</h2>
+					</div>
+					<div class="chart-container">
+						<canvas id="progressChart"></canvas>
+					</div>
+				</div>
+			</div>
+		</div>
+
+		<script>
+			let progressChart = null;
+			let currentUser = null;
+
+			// check authentication on load
+			document.addEventListener("DOMContentLoaded", function () {
+				checkAuth();
+			});
+
+			function checkAuth() {
+				const token = localStorage.getItem("token");
+				if (!token) {
+					window.location.href = "/";
+					return;
+				}
+
+				// decode simple token (username:timestamp)
+				try {
+					const decoded = atob(token);
+					const [username] = decoded.split(":");
+					currentUser = username;
+
+					document.getElementById("username").textContent = username;
+					document.getElementById("welcomeUser").textContent =
+						username;
+					document.getElementById("userAvatar").textContent = username
+						.charAt(0)
+						.toUpperCase();
+
+					loadStats();
+					loadChart();
+					loadGoals();
+				} catch (error) {
+					logout();
+				}
+			}
+
+			function logout() {
+				localStorage.removeItem("token");
+				window.location.href = "/";
+			}
+
+			document
+				.getElementById("activityForm")
+				.addEventListener("submit", async function (e) {
+					e.preventDefault();
+
+					const data = {
+						applications_sent: parseInt(
+							document.getElementById("applications").value
+						),
+						networking_contacts: parseInt(
+							document.getElementById("networking").value
+						),
+						skill_practice_hours: parseFloat(
+							document.getElementById("skillHours").value
+						),
+						research_companies: parseInt(
+							document.getElementById("research").value
+						),
+					};
+
+					try {
+						const response = await fetch("/api/activities", {
+							method: "POST",
+							headers: {
+								"Content-Type": "application/json",
+								Authorization:
+									"Bearer " + localStorage.getItem("token"),
+							},
+							body: JSON.stringify(data),
+						});
+
+						if (response.ok) {
+							document.getElementById(
+								"successMessage"
+							).style.display = "block";
+							setTimeout(() => {
+								document.getElementById(
+									"successMessage"
+								).style.display = "none";
+							}, 3000);
+
+							document.getElementById("activityForm").reset();
+							loadStats();
+							loadChart();
+						}
+					} catch (error) {
+						console.error("Error logging activity:", error);
+					}
+				});
+
+			async function loadStats() {
+				try {
+					const response = await fetch("/api/stats", {
+						headers: {
+							Authorization:
+								"Bearer " + localStorage.getItem("token"),
+						},
+					});
+					const stats = await response.json();
+
+					document.getElementById("todayStats").textContent =
+						stats.today_activities;
+					document.getElementById("weekStats").textContent =
+						stats.week_activities;
+					document.getElementById("streakStats").textContent =
+						stats.current_streak;
+					document.getElementById("totalStats").textContent =
+						stats.total_days_logged;
+				} catch (error) {
+					console.error("Error loading stats:", error);
+				}
+			}
+
+			async function loadChart() {
+				try {
+					const response = await fetch("/api/activities?days=7", {
+						headers: {
+							Authorization:
+								"Bearer " + localStorage.getItem("token"),
+						},
+					});
+					const activities = await response.json();
+
+					const labels = activities.reverse().map((a) => {
+						const date = new Date(a.date);
+						return date.toLocaleDateString("en-US", {
+							weekday: "short",
+							month: "short",
+							day: "numeric",
+						});
+					});
+
+					const datasets = [
+						{
+							label: "Applications",
+							data: activities.map((a) => a.applications_sent),
+							backgroundColor: "rgba(59, 130, 246, 0.8)",
+							borderColor: "rgba(59, 130, 246, 1)",
+							borderWidth: 2,
+							borderRadius: 6,
+							borderSkipped: false,
+						},
+						{
+							label: "Networking",
+							data: activities.map((a) => a.networking_contacts),
+							backgroundColor: "rgba(16, 185, 129, 0.8)",
+							borderColor: "rgba(16, 185, 129, 1)",
+							borderWidth: 2,
+							borderRadius: 6,
+							borderSkipped: false,
+						},
+						{
+							label: "Research",
+							data: activities.map((a) => a.research_companies),
+							backgroundColor: "rgba(245, 158, 11, 0.8)",
+							borderColor: "rgba(245, 158, 11, 1)",
+							borderWidth: 2,
+							borderRadius: 6,
+							borderSkipped: false,
+						},
+					];
+
+					const ctx = document
+						.getElementById("progressChart")
+						.getContext("2d");
+
+					if (progressChart) {
+						progressChart.destroy();
+					}
+
+					progressChart = new Chart(ctx, {
+						type: "bar",
+						data: { labels, datasets },
+						options: {
+							responsive: true,
+							maintainAspectRatio: false,
+							plugins: {
+								legend: {
+									position: "top",
+									labels: {
+										usePointStyle: true,
+										padding: 20,
+										font: { weight: "600" },
+									},
+								},
+							},
+							scales: {
+								y: {
+									beginAtZero: true,
+									ticks: {
+										stepSize: 1,
+										font: { weight: "500" },
+									},
+									grid: { color: "#f1f5f9" },
+								},
+								x: {
+									ticks: { font: { weight: "500" } },
+									grid: { display: false },
+								},
+							},
+						},
+					});
+				} catch (error) {
+					console.error("Error loading chart:", error);
+				}
+			}
+
+			async function loadGoals() {
+				try {
+					const response = await fetch("/api/goals", {
+						headers: {
+							Authorization:
+								"Bearer " + localStorage.getItem("token"),
+						},
+					});
+					const goals = await response.json();
+
+					const dailyGoal = goals.find((g) => g.type === "daily");
+					if (dailyGoal) {
+						document.getElementById("goalApps").value =
+							dailyGoal.applications_target;
+						document.getElementById("goalNetwork").value =
+							dailyGoal.networking_target;
+						document.getElementById("goalSkills").value =
+							dailyGoal.skill_hours_target;
+						document.getElementById("goalResearch").value =
+							dailyGoal.research_target;
+					}
+				} catch (error) {
+					console.error("Error loading goals:", error);
+				}
+			}
+
+			async function setGoals() {
+				const data = {
+					type: "daily",
+					applications_target: parseInt(
+						document.getElementById("goalApps").value
+					),
+					networking_target: parseInt(
+						document.getElementById("goalNetwork").value
+					),
+					skill_hours_target: parseFloat(
+						document.getElementById("goalSkills").value
+					),
+					research_target: parseInt(
+						document.getElementById("goalResearch").value
+					),
+				};
+
+				try {
+					const response = await fetch("/api/goals", {
+						method: "POST",
+						headers: {
+							"Content-Type": "application/json",
+							Authorization:
+								"Bearer " + localStorage.getItem("token"),
+						},
+						body: JSON.stringify(data),
+					});
+
+					if (response.ok) {
+						// show success feedback
+						const btn = event.target;
+						const originalText = btn.innerHTML;
+						btn.innerHTML =
+							'<i class="fas fa-check"></i> Goals Updated!';
+						btn.style.background = "#10b981";
+						setTimeout(() => {
+							btn.innerHTML = originalText;
+							btn.style.background = "";
+						}, 2000);
+					}
+				} catch (error) {
+					console.error("Error setting goals:", error);
+				}
+			}
+		</script>
+	</body>
+</html>

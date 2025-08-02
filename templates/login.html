@@ -1,0 +1,528 @@
+<!DOCTYPE html>
+<html lang="en">
+	<head>
+		<meta charset="UTF-8" />
+		<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+		<title>JobTracker Pro - Login</title>
+		<link
+			href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"
+			rel="stylesheet"
+		/>
+		<style>
+			* {
+				margin: 0;
+				padding: 0;
+				box-sizing: border-box;
+			}
+
+			body {
+				font-family: "Inter", -apple-system, BlinkMacSystemFont,
+					sans-serif;
+				background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+				min-height: 100vh;
+				display: flex;
+				align-items: center;
+				justify-content: center;
+				color: #333;
+			}
+
+			.login-container {
+				background: white;
+				padding: 40px;
+				border-radius: 20px;
+				box-shadow: 0 20px 60px rgba(0, 0, 0, 0.15);
+				width: 100%;
+				max-width: 400px;
+				backdrop-filter: blur(10px);
+			}
+
+			.logo {
+				text-align: center;
+				margin-bottom: 30px;
+			}
+
+			.logo i {
+				font-size: 3rem;
+				color: #667eea;
+				margin-bottom: 10px;
+			}
+
+			.logo h1 {
+				font-size: 1.8rem;
+				font-weight: 700;
+				color: #333;
+				margin-bottom: 5px;
+			}
+
+			.logo p {
+				color: #666;
+				font-size: 0.9rem;
+			}
+
+			.form-group {
+				margin-bottom: 20px;
+			}
+
+			label {
+				display: block;
+				margin-bottom: 8px;
+				font-weight: 600;
+				color: #555;
+				font-size: 0.9rem;
+			}
+
+			input[type="text"],
+			input[type="password"] {
+				width: 100%;
+				padding: 15px;
+				border: 2px solid #e1e5e9;
+				border-radius: 12px;
+				font-size: 1rem;
+				transition: all 0.3s ease;
+				background: #f8f9fa;
+			}
+
+			input[type="text"]:focus,
+			input[type="password"]:focus {
+				outline: none;
+				border-color: #667eea;
+				background: white;
+				box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+			}
+
+			.btn {
+				background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+				color: white;
+				border: none;
+				padding: 15px 24px;
+				border-radius: 12px;
+				font-size: 1rem;
+				font-weight: 600;
+				cursor: pointer;
+				transition: all 0.3s ease;
+				width: 100%;
+				margin-bottom: 15px;
+			}
+
+			.btn:hover {
+				transform: translateY(-2px);
+				box-shadow: 0 10px 30px rgba(102, 126, 234, 0.3);
+			}
+
+			.register-link {
+				text-align: center;
+				margin-top: 20px;
+			}
+
+			.register-link a {
+				color: #667eea;
+				text-decoration: none;
+				font-weight: 600;
+			}
+
+			.register-link a:hover {
+				text-decoration: underline;
+			}
+
+			.error {
+				background: #fee;
+				color: #c53030;
+				padding: 12px;
+				border-radius: 8px;
+				margin-bottom: 20px;
+				font-size: 0.9rem;
+				border: 1px solid #fed7d7;
+			}
+
+			.success {
+				background: #f0fff4;
+				color: #22543d;
+				padding: 12px;
+				border-radius: 8px;
+				margin-bottom: 20px;
+				font-size: 0.9rem;
+				border: 1px solid #c6f6d5;
+			}
+
+			.hidden {
+				display: none;
+			}
+
+			.security-questions {
+				margin-top: 20px;
+			}
+
+			select {
+				width: 100%;
+				padding: 15px;
+				border: 2px solid #e1e5e9;
+				border-radius: 12px;
+				font-size: 1rem;
+				background: #f8f9fa;
+				transition: all 0.3s ease;
+			}
+
+			select:focus {
+				outline: none;
+				border-color: #667eea;
+				background: white;
+			}
+		</style>
+	</head>
+	<body>
+		<div class="login-container">
+			<div class="logo">
+				<i class="fas fa-briefcase"></i>
+				<h1>JobTracker Pro</h1>
+				<p>Track your path to success</p>
+			</div>
+
+			<div id="loginForm">
+				<div id="message"></div>
+				<form onsubmit="handleLogin(event)">
+					<div class="form-group">
+						<label for="username">Username</label>
+						<input type="text" id="username" required />
+					</div>
+
+					<div class="form-group">
+						<label for="password">Password</label>
+						<input type="password" id="password" required />
+					</div>
+
+					<button type="submit" class="btn">
+						<i class="fas fa-sign-in-alt"></i> Sign In
+					</button>
+				</form>
+				<div class="register-link">
+					<a href="#" onclick="showRegister()">Create new account</a>
+					|
+					<a href="#" onclick="showForgotPassword()"
+						>Forgot password?</a
+					>
+				</div>
+			</div>
+
+			<div id="registerForm" class="hidden">
+				<div id="regMessage"></div>
+				<form onsubmit="handleRegister(event)">
+					<div class="form-group">
+						<label for="regUsername">Choose Username</label>
+						<input type="text" id="regUsername" required />
+					</div>
+
+					<div class="form-group">
+						<label for="regPassword">Password</label>
+						<input type="password" id="regPassword" required />
+					</div>
+
+					<div class="security-questions">
+						<h3 style="margin-bottom: 15px; color: #333">
+							Security Questions
+						</h3>
+
+						<div class="form-group">
+							<label for="question1"
+								>What was your first pet's name?</label
+							>
+							<input type="text" id="question1" required />
+						</div>
+
+						<div class="form-group">
+							<label for="question2"
+								>What city were you born in?</label
+							>
+							<input type="text" id="question2" required />
+						</div>
+
+						<div class="form-group">
+							<label for="question3"
+								>What's your favorite movie?</label
+							>
+							<input type="text" id="question3" required />
+						</div>
+					</div>
+
+					<button type="submit" class="btn">
+						<i class="fas fa-user-plus"></i> Create Account
+					</button>
+				</form>
+
+				<div class="register-link">
+					<a href="#" onclick="showLogin()">Back to login</a>
+				</div>
+			</div>
+
+			<div id="forgotPasswordForm" class="hidden">
+				<div id="forgotMessage"></div>
+				<form onsubmit="handleForgotPassword(event)">
+					<div class="form-group">
+						<label for="forgotUsername">Username</label>
+						<input type="text" id="forgotUsername" required />
+					</div>
+
+					<div id="securityQuestionsSection" class="hidden">
+						<h3 style="margin-bottom: 15px; color: #333">
+							Answer Security Questions
+						</h3>
+
+						<div class="form-group">
+							<label for="forgotQuestion1"
+								>What was your first pet's name?</label
+							>
+							<input type="text" id="forgotQuestion1" required />
+						</div>
+
+						<div class="form-group">
+							<label for="forgotQuestion2"
+								>What city were you born in?</label
+							>
+							<input type="text" id="forgotQuestion2" required />
+						</div>
+
+						<div class="form-group">
+							<label for="forgotQuestion3"
+								>What's your favorite movie?</label
+							>
+							<input type="text" id="forgotQuestion3" required />
+						</div>
+
+						<div class="form-group">
+							<label for="newPassword">New Password</label>
+							<input type="password" id="newPassword" required />
+						</div>
+					</div>
+
+					<button
+						type="button"
+						class="btn"
+						id="forgotSubmitBtn"
+						onclick="testForgotPassword()"
+					>
+						<i class="fas fa-search"></i> Find Account
+					</button>
+				</form>
+
+				<div class="register-link">
+					<a href="#" onclick="showLogin()">Back to login</a>
+				</div>
+			</div>
+		</div>
+
+		<script>
+			function showRegister() {
+				document.getElementById("loginForm").classList.add("hidden");
+				document
+					.getElementById("forgotPasswordForm")
+					.classList.add("hidden");
+				document
+					.getElementById("registerForm")
+					.classList.remove("hidden");
+			}
+
+			function showLogin() {
+				document.getElementById("registerForm").classList.add("hidden");
+				document
+					.getElementById("forgotPasswordForm")
+					.classList.add("hidden");
+				document.getElementById("loginForm").classList.remove("hidden");
+			}
+
+			function showForgotPassword() {
+				document.getElementById("loginForm").classList.add("hidden");
+				document.getElementById("registerForm").classList.add("hidden");
+				document
+					.getElementById("forgotPasswordForm")
+					.classList.remove("hidden");
+			}
+
+			async function handleLogin(event) {
+				event.preventDefault();
+				const username = document.getElementById("username").value;
+				const password = document.getElementById("password").value;
+
+				try {
+					const response = await fetch("/api/login", {
+						method: "POST",
+						headers: { "Content-Type": "application/json" },
+						body: JSON.stringify({ username, password }),
+					});
+
+					const result = await response.json();
+
+					if (response.ok) {
+						localStorage.setItem("token", result.token);
+						window.location.href = "/dashboard";
+					} else {
+						showMessage("message", result.error, "error");
+					}
+				} catch (error) {
+					showMessage(
+						"message",
+						"Login failed. Please try again.",
+						"error"
+					);
+				}
+			}
+
+			async function handleRegister(event) {
+				event.preventDefault();
+				const username = document.getElementById("regUsername").value;
+				const password = document.getElementById("regPassword").value;
+				const question1 = document.getElementById("question1").value;
+				const question2 = document.getElementById("question2").value;
+				const question3 = document.getElementById("question3").value;
+
+				try {
+					const response = await fetch("/api/register", {
+						method: "POST",
+						headers: { "Content-Type": "application/json" },
+						body: JSON.stringify({
+							username,
+							password,
+							security_questions: {
+								pet_name: question1,
+								birth_city: question2,
+								favorite_movie: question3,
+							},
+						}),
+					});
+
+					const result = await response.json();
+
+					if (response.ok) {
+						showMessage(
+							"regMessage",
+							"Account created successfully! You can now login.",
+							"success"
+						);
+						setTimeout(() => showLogin(), 2000);
+					} else {
+						showMessage("regMessage", result.error, "error");
+					}
+				} catch (error) {
+					showMessage(
+						"regMessage",
+						"Registration failed. Please try again.",
+						"error"
+					);
+				}
+			}
+
+			function testForgotPassword() {
+				handleForgotPasswordMain();
+			}
+
+			async function handleForgotPasswordMain() {
+				const username =
+					document.getElementById("forgotUsername").value;
+				const questionsSection = document.getElementById(
+					"securityQuestionsSection"
+				);
+				const submitBtn = document.getElementById("forgotSubmitBtn");
+
+				if (questionsSection.classList.contains("hidden")) {
+					// step 1: verify username exists
+					try {
+						const response = await fetch("/api/verify-user", {
+							method: "POST",
+							headers: { "Content-Type": "application/json" },
+							body: JSON.stringify({ username }),
+						});
+
+						if (response.ok) {
+							questionsSection.classList.remove("hidden");
+							submitBtn.innerHTML =
+								'<i class="fas fa-key"></i> Reset Password';
+							showMessage(
+								"forgotMessage",
+								"Please answer your security questions:",
+								"success"
+							);
+						} else {
+							const result = await response.json();
+							showMessage("forgotMessage", result.error, "error");
+						}
+					} catch (error) {
+						showMessage(
+							"forgotMessage",
+							"Error verifying username. Please try again.",
+							"error"
+						);
+					}
+				} else {
+					// step 2: verify security questions and reset password
+					const question1 =
+						document.getElementById("forgotQuestion1").value;
+					const question2 =
+						document.getElementById("forgotQuestion2").value;
+					const question3 =
+						document.getElementById("forgotQuestion3").value;
+					const newPassword =
+						document.getElementById("newPassword").value;
+
+					try {
+						const response = await fetch("/api/reset-password", {
+							method: "POST",
+							headers: { "Content-Type": "application/json" },
+							body: JSON.stringify({
+								username,
+								security_answers: {
+									pet_name: question1,
+									birth_city: question2,
+									favorite_movie: question3,
+								},
+								new_password: newPassword,
+							}),
+						});
+
+						const result = await response.json();
+
+						if (response.ok) {
+							showMessage(
+								"forgotMessage",
+								"Password reset successfully! You can now login.",
+								"success"
+							);
+							setTimeout(() => {
+								showLogin();
+								// reset form
+								document.getElementById(
+									"forgotUsername"
+								).value = "";
+								document.getElementById(
+									"forgotQuestion1"
+								).value = "";
+								document.getElementById(
+									"forgotQuestion2"
+								).value = "";
+								document.getElementById(
+									"forgotQuestion3"
+								).value = "";
+								document.getElementById("newPassword").value =
+									"";
+								questionsSection.classList.add("hidden");
+								submitBtn.innerHTML =
+									'<i class="fas fa-search"></i> Find Account';
+							}, 2000);
+						} else {
+							showMessage("forgotMessage", result.error, "error");
+						}
+					} catch (error) {
+						showMessage(
+							"forgotMessage",
+							"Password reset failed. Please try again.",
+							"error"
+						);
+					}
+				}
+			}
+
+			function showMessage(elementId, message, type) {
+				const element = document.getElementById(elementId);
+				element.innerHTML = `<div class="${type}">${message}</div>`;
+				setTimeout(() => (element.innerHTML = ""), 5000);
+			}
+		</script>
+	</body>
+</html>
