@@ -106,23 +106,43 @@ def dashboard():
 
 @app.route('/api/register', methods=['POST'])
 def register():
-    data = request.get_json()
-    
-    if User.query.filter_by(username=data['username']).first():
-        return jsonify({'error': 'Username already exists'}), 400
-    
-    user = User(
-        username=data['username'],
-        pet_name=data['security_questions']['pet_name'].lower(),
-        birth_city=data['security_questions']['birth_city'].lower(),
-        favorite_movie=data['security_questions']['favorite_movie'].lower()
-    )
-    user.set_password(data['password'])
-    
-    db.session.add(user)
-    db.session.commit()
-    
-    return jsonify({'message': 'User created successfully'}), 201
+    try:
+        data = request.get_json()
+        
+        if not data:
+            return jsonify({'error': 'No data provided'}), 400
+            
+        required_fields = ['username', 'password', 'security_questions']
+        for field in required_fields:
+            if field not in data:
+                return jsonify({'error': f'Missing field: {field}'}), 400
+        
+        security_questions = data.get('security_questions', {})
+        required_security = ['pet_name', 'birth_city', 'favorite_movie']
+        for field in required_security:
+            if field not in security_questions:
+                return jsonify({'error': f'Missing security question: {field}'}), 400
+        
+        if User.query.filter_by(username=data['username']).first():
+            return jsonify({'error': 'Username already exists'}), 400
+        
+        user = User(
+            username=data['username'],
+            pet_name=security_questions['pet_name'].lower().strip(),
+            birth_city=security_questions['birth_city'].lower().strip(),
+            favorite_movie=security_questions['favorite_movie'].lower().strip()
+        )
+        user.set_password(data['password'])
+        
+        db.session.add(user)
+        db.session.commit()
+        
+        return jsonify({'message': 'User created successfully'}), 201
+        
+    except Exception as e:
+        db.session.rollback()
+        print(f"Registration error: {str(e)}")
+        return jsonify({'error': 'Registration failed. Please try again.'}), 500
 
 @app.route('/api/login', methods=['POST'])
 def login_api():

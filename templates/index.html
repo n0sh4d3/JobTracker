@@ -582,7 +582,6 @@
 					return;
 				}
 
-				// decode simple token (username:timestamp)
 				try {
 					const decoded = atob(token);
 					const [username] = decoded.split(":");
@@ -599,6 +598,7 @@
 					loadChart();
 					loadGoals();
 				} catch (error) {
+					console.error("Auth error:", error);
 					logout();
 				}
 			}
