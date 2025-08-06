@@ -14,14 +14,8 @@ app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
 db = SQLAlchemy(app)
 
-# initialize database tables
-def init_db():
-    with app.app_context():
-        db.create_all()
-
-# create tables before first request
-@app.before_first_request
-def create_tables():
+# initialize database tables immediately
+with app.app_context():
     db.create_all()
 
 class User(db.Model):
@@ -345,6 +339,12 @@ def debug_user(username):
             'pet_name': user.pet_name,
             'birth_city': user.birth_city,
             'favorite_movie': user.favorite_movie
+        })
+    return jsonify({'error': 'User not found'}), 404
+
+if __name__ == '__main__':
+    port = int(os.environ.get('PORT', 5000))
+    app.run(host='0.0.0.0', port=port, debug=os.environ.get('FLASK_ENV') == 'development')
         })
     return jsonify({'error': 'User not found'}), 404
 
