@@ -1,4 +1,4 @@
-# JobTracker Pro
+# JobTracker
 
 A modern Flask we## Features Overview
 
