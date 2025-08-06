@@ -14,6 +14,16 @@ app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
 db = SQLAlchemy(app)
 
+# initialize database tables
+def init_db():
+    with app.app_context():
+        db.create_all()
+
+# create tables before first request
+@app.before_first_request
+def create_tables():
+    db.create_all()
+
 class User(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     username = db.Column(db.String(80), unique=True, nullable=False)
@@ -340,6 +350,5 @@ def debug_user(username):
 
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 5000))
-    with app.app_context():
-        db.create_all()
+    init_db()
     app.run(host='0.0.0.0', port=port, debug=os.environ.get('FLASK_ENV') == 'development')
