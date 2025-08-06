@@ -8,8 +8,8 @@ import json
 from functools import wraps
 
 app = Flask(__name__)
-app.config['SECRET_KEY'] = 'dev-key-change-in-production'
-app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///job_hunt.db'
+app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'dev-key-change-in-production')
+app.config['SQLALCHEMY_DATABASE_URI'] = os.environ.get('DATABASE_URL', 'sqlite:///job_hunt.db')
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
 db = SQLAlchemy(app)
@@ -319,6 +319,7 @@ def debug_user(username):
     return jsonify({'error': 'User not found'}), 404
 
 if __name__ == '__main__':
+    port = int(os.environ.get('PORT', 5000))
     with app.app_context():
         db.create_all()
-    app.run(debug=True)
+    app.run(host='0.0.0.0', port=port, debug=os.environ.get('FLASK_ENV') == 'development')
