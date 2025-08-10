@@ -10,18 +10,12 @@ from functools import wraps
 app = Flask(__name__)
 app.config["SECRET_KEY"] = os.environ.get("SECRET_KEY", "dev-key-change-in-production")
 
-# Fix DATABASE_URL for Railway deployment
+# Handle PostgreSQL URL format for Railway
 database_url = os.environ.get("DATABASE_URL")
-print(f"Original DATABASE_URL: {database_url}")
-
 if database_url and database_url.startswith("postgres://"):
     database_url = database_url.replace("postgres://", "postgresql://", 1)
-    print(f"Updated DATABASE_URL: postgresql://...")
 
-final_db_url = database_url or "sqlite:///job_hunt.db"
-print(f"Final database URL: {final_db_url[:50]}...")
-
-app.config["SQLALCHEMY_DATABASE_URI"] = final_db_url
+app.config["SQLALCHEMY_DATABASE_URI"] = database_url or "sqlite:///job_hunt.db"
 app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
 
 db = SQLAlchemy(app)
@@ -86,33 +80,16 @@ class Goal(db.Model):
         }
 
 
-# Initialize database function with better error handling
 def init_db():
-    try:
-        with app.app_context():
-            db.create_all()
-            print("Database tables created successfully")
-
-            # Test database connection
-            db.session.execute(db.text("SELECT 1"))
-            db.session.commit()
-            print("Database connection verified")
-
-    except Exception as e:
-        print(f"Database initialization error: {str(e)}")
-        raise
-
-
-# Create tables automatically when app starts
-with app.app_context():
-    try:
+    with app.app_context():
         db.create_all()
-        print("Database tables initialized on startup")
-    except Exception as e:
-        print(f"Error initializing database on startup: {str(e)}")
 
 
-# Simple token authentication
+# Initialize database tables on startup
+with app.app_context():
+    db.create_all()
+
+
 def require_auth(f):
     @wraps(f)
     def decorated_function(*args, **kwargs):
@@ -123,11 +100,8 @@ def require_auth(f):
         try:
             token = token.replace("Bearer ", "")
             decoded = base64.b64decode(token).decode("utf-8")
-            # Split only on first colon to handle timestamp colons
             username, timestamp = decoded.split(":", 1)
 
-            # Simple check - for testing, we'll be more lenient
-            # In production you'd want proper datetime parsing and token expiration
             user = User.query.filter_by(username=username).first()
             if not user:
                 return jsonify({"error": "Invalid token"}), 401
@@ -135,7 +109,7 @@ def require_auth(f):
             request.current_user = user
             return f(*args, **kwargs)
         except Exception as e:
-            return jsonify({"error": f"Invalid token: {str(e)}"}), 401
+            return jsonify({"error": "Invalid token"}), 401
 
     return decorated_function
 
@@ -154,7 +128,6 @@ def dashboard():
 def register():
     try:
         data = request.get_json()
-        print(f"Registration request received: {data}")  # Debug logging
 
         if not data:
             return jsonify({"error": "No data provided"}), 400
@@ -170,13 +143,9 @@ def register():
             if field not in security_questions:
                 return jsonify({"error": f"Missing security question: {field}"}), 400
 
-        # Check if username already exists
-        existing_user = User.query.filter_by(username=data["username"]).first()
-        if existing_user:
-            print(f"Username {data['username']} already exists")
+        if User.query.filter_by(username=data["username"]).first():
             return jsonify({"error": "Username already exists"}), 400
 
-        # Create new user
         user = User(
             username=data["username"],
             pet_name=security_questions["pet_name"].lower().strip(),
@@ -185,46 +154,30 @@ def register():
         )
         user.set_password(data["password"])
 
-        print(f"Creating user: {user.username}")
         db.session.add(user)
         db.session.commit()
-        print(f"User {user.username} created successfully with ID: {user.id}")
 
         return jsonify({"message": "User created successfully"}), 201
 
     except Exception as e:
         db.session.rollback()
-        print(f"Registration error: {str(e)}")
-        import traceback
-
-        traceback.print_exc()
-        return jsonify({"error": f"Registration failed: {str(e)}"}), 500
+        return jsonify({"error": "Registration failed"}), 500
 
 
 @app.route("/api/login", methods=["POST"])
 def login_api():
     try:
         data = request.get_json()
-        print(f"Login attempt for: {data.get('username')}")
-
         user = User.query.filter_by(username=data["username"]).first()
 
-        if user:
-            print(f"User found: {user.username}")
-            if user.check_password(data["password"]):
-                # Create simple token
-                token_data = f"{user.username}:{datetime.now().isoformat()}"
-                token = base64.b64encode(token_data.encode()).decode("utf-8")
-                return jsonify({"token": token, "username": user.username})
-            else:
-                print("Password check failed")
-        else:
-            print(f"User not found: {data.get('username')}")
+        if user and user.check_password(data["password"]):
+            token_data = f"{user.username}:{datetime.now().isoformat()}"
+            token = base64.b64encode(token_data.encode()).decode("utf-8")
+            return jsonify({"token": token, "username": user.username})
 
         return jsonify({"error": "Invalid credentials"}), 401
 
     except Exception as e:
-        print(f"Login error: {str(e)}")
         return jsonify({"error": "Login failed"}), 500
 
 
@@ -239,7 +192,6 @@ def verify_user():
         else:
             return jsonify({"error": "Username not found"}), 404
     except Exception as e:
-        print(f"Verify user error: {str(e)}")
         return jsonify({"error": "Verification failed"}), 500
 
 
@@ -252,7 +204,6 @@ def reset_password():
         if not user:
             return jsonify({"error": "Username not found"}), 404
 
-        # Verify security questions
         answers = data["security_answers"]
         if (
             user.pet_name != answers["pet_name"].lower().strip()
@@ -261,14 +212,12 @@ def reset_password():
         ):
             return jsonify({"error": "Security questions do not match"}), 400
 
-        # Update password
         user.set_password(data["new_password"])
         db.session.commit()
 
         return jsonify({"message": "Password reset successfully"}), 200
 
     except Exception as e:
-        print(f"Reset password error: {str(e)}")
         return jsonify({"error": "Password reset failed"}), 500
 
 
@@ -287,7 +236,6 @@ def get_activities():
         )
         return jsonify([activity.to_dict() for activity in activities])
     except Exception as e:
-        print(f"Get activities error: {str(e)}")
         return jsonify({"error": "Failed to get activities"}), 500
 
 
@@ -296,9 +244,8 @@ def get_activities():
 def add_activity():
     try:
         data = request.get_json()
-
-        # Check if activity exists for today
         today = date.today()
+
         existing = Activity.query.filter_by(
             user_id=request.current_user.id, date=today
         ).first()
@@ -323,7 +270,6 @@ def add_activity():
         return jsonify(activity.to_dict()), 201
     except Exception as e:
         db.session.rollback()
-        print(f"Add activity error: {str(e)}")
         return jsonify({"error": "Failed to add activity"}), 500
 
 
@@ -334,7 +280,6 @@ def get_goals():
         goals = Goal.query.filter_by(user_id=request.current_user.id, active=True).all()
         return jsonify([goal.to_dict() for goal in goals])
     except Exception as e:
-        print(f"Get goals error: {str(e)}")
         return jsonify({"error": "Failed to get goals"}), 500
 
 
@@ -344,7 +289,6 @@ def set_goals():
     try:
         data = request.get_json()
 
-        # Deactivate existing goals of same type
         Goal.query.filter_by(
             user_id=request.current_user.id, type=data["type"], active=True
         ).update({"active": False})
@@ -363,7 +307,6 @@ def set_goals():
         return jsonify(goal.to_dict()), 201
     except Exception as e:
         db.session.rollback()
-        print(f"Set goals error: {str(e)}")
         return jsonify({"error": "Failed to set goals"}), 500
 
 
@@ -374,7 +317,6 @@ def get_stats():
         today = date.today()
         week_start = today - timedelta(days=today.weekday())
 
-        # Today's activity
         today_activity = Activity.query.filter_by(
             user_id=request.current_user.id, date=today
         ).first()
@@ -386,7 +328,6 @@ def get_stats():
                 + today_activity.research_companies
             )
 
-        # This week's activities
         week_activities = Activity.query.filter(
             Activity.user_id == request.current_user.id, Activity.date >= week_start
         ).all()
@@ -395,7 +336,6 @@ def get_stats():
             for a in week_activities
         )
 
-        # Streak calculation
         streak = 0
         check_date = today
         while True:
@@ -423,59 +363,19 @@ def get_stats():
             }
         )
     except Exception as e:
-        print(f"Get stats error: {str(e)}")
         return jsonify({"error": "Failed to get stats"}), 500
 
 
-@app.route("/api/debug-user/<username>")
-def debug_user(username):
-    try:
-        user = User.query.filter_by(username=username).first()
-        if user:
-            return jsonify(
-                {
-                    "username": user.username,
-                    "password_hash": user.password_hash,
-                    "pet_name": user.pet_name,
-                    "birth_city": user.birth_city,
-                    "favorite_movie": user.favorite_movie,
-                }
-            )
-        return jsonify({"error": "user not found"}), 404
-    except Exception as e:
-        print(f"Debug user error: {str(e)}")
-        return jsonify({"error": "Debug failed"}), 500
-
-
-# Health check endpoint for Railway
 @app.route("/health")
 def health_check():
     try:
-        # Test database connection
         db.session.execute(db.text("SELECT 1"))
-        return jsonify({"status": "healthy", "database": "connected"}), 200
+        return jsonify({"status": "healthy"}), 200
     except Exception as e:
-        return jsonify({"status": "unhealthy", "error": str(e)}), 500
-
-
-# Manual table creation endpoint (for debugging)
-@app.route("/api/init-db", methods=["POST"])
-def init_db_endpoint():
-    try:
-        db.create_all()
-
-        # Verify tables exist
-        tables = db.inspect(db.engine).get_table_names()
-        return jsonify(
-            {"message": "Database initialized successfully", "tables": tables}
-        ), 200
-    except Exception as e:
-        return jsonify({"error": f"Failed to initialize database: {str(e)}"}), 500
+        return jsonify({"status": "unhealthy"}), 500
 
 
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5000))
     init_db()
-    app.run(
-        host="0.0.0.0", port=port, debug=os.environ.get("FLASK_ENV") == "development"
-    )
+    app.run(host="0.0.0.0", port=port, debug=False)
