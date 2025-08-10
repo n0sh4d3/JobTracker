@@ -9,9 +9,19 @@ from functools import wraps
 
 app = Flask(__name__)
 app.config["SECRET_KEY"] = os.environ.get("SECRET_KEY", "dev-key-change-in-production")
-app.config["SQLALCHEMY_DATABASE_URI"] = os.environ.get(
-    "DATABASE_URL", "sqlite:///job_hunt.db"
-)
+
+# Fix DATABASE_URL for Railway deployment
+database_url = os.environ.get("DATABASE_URL")
+print(f"Original DATABASE_URL: {database_url}")
+
+if database_url and database_url.startswith("postgres://"):
+    database_url = database_url.replace("postgres://", "postgresql://", 1)
+    print(f"Updated DATABASE_URL: postgresql://...")
+
+final_db_url = database_url or "sqlite:///job_hunt.db"
+print(f"Final database URL: {final_db_url[:50]}...")
+
+app.config["SQLALCHEMY_DATABASE_URI"] = final_db_url
 app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
 
 db = SQLAlchemy(app)
@@ -76,11 +86,30 @@ class Goal(db.Model):
         }
 
 
-# Initialize database function
+# Initialize database function with better error handling
 def init_db():
-    with app.app_context():
+    try:
+        with app.app_context():
+            db.create_all()
+            print("Database tables created successfully")
+
+            # Test database connection
+            db.session.execute(db.text("SELECT 1"))
+            db.session.commit()
+            print("Database connection verified")
+
+    except Exception as e:
+        print(f"Database initialization error: {str(e)}")
+        raise
+
+
+# Create tables automatically when app starts
+with app.app_context():
+    try:
         db.create_all()
-        print("Database tables created successfully")
+        print("Database tables initialized on startup")
+    except Exception as e:
+        print(f"Error initializing database on startup: {str(e)}")
 
 
 # Simple token authentication
@@ -125,6 +154,7 @@ def dashboard():
 def register():
     try:
         data = request.get_json()
+        print(f"Registration request received: {data}")  # Debug logging
 
         if not data:
             return jsonify({"error": "No data provided"}), 400
@@ -140,9 +170,13 @@ def register():
             if field not in security_questions:
                 return jsonify({"error": f"Missing security question: {field}"}), 400
 
-        if User.query.filter_by(username=data["username"]).first():
+        # Check if username already exists
+        existing_user = User.query.filter_by(username=data["username"]).first()
+        if existing_user:
+            print(f"Username {data['username']} already exists")
             return jsonify({"error": "Username already exists"}), 400
 
+        # Create new user
         user = User(
             username=data["username"],
             pet_name=security_questions["pet_name"].lower().strip(),
@@ -151,222 +185,292 @@ def register():
         )
         user.set_password(data["password"])
 
+        print(f"Creating user: {user.username}")
         db.session.add(user)
         db.session.commit()
+        print(f"User {user.username} created successfully with ID: {user.id}")
 
         return jsonify({"message": "User created successfully"}), 201
 
     except Exception as e:
         db.session.rollback()
         print(f"Registration error: {str(e)}")
-        return jsonify({"error": "Registration failed. Please try again."}), 500
+        import traceback
+
+        traceback.print_exc()
+        return jsonify({"error": f"Registration failed: {str(e)}"}), 500
 
 
 @app.route("/api/login", methods=["POST"])
 def login_api():
-    data = request.get_json()
-    user = User.query.filter_by(username=data["username"]).first()
+    try:
+        data = request.get_json()
+        print(f"Login attempt for: {data.get('username')}")
 
-    if user:
-        print(f"User found: {user.username}")
-        print(f"Stored hash: {user.password_hash}")
-        input_hash = hashlib.sha256(data["password"].encode()).hexdigest()
-        print(f"Input hash: {input_hash}")
-        print(f"Password check result: {user.check_password(data['password'])}")
+        user = User.query.filter_by(username=data["username"]).first()
 
-        if user.check_password(data["password"]):
-            # Create simple token
-            token_data = f"{user.username}:{datetime.now().isoformat()}"
-            token = base64.b64encode(token_data.encode()).decode("utf-8")
-            return jsonify({"token": token, "username": user.username})
-    else:
-        print(f"User not found: {data['username']}")
+        if user:
+            print(f"User found: {user.username}")
+            if user.check_password(data["password"]):
+                # Create simple token
+                token_data = f"{user.username}:{datetime.now().isoformat()}"
+                token = base64.b64encode(token_data.encode()).decode("utf-8")
+                return jsonify({"token": token, "username": user.username})
+            else:
+                print("Password check failed")
+        else:
+            print(f"User not found: {data.get('username')}")
 
-    return jsonify({"error": "Invalid credentials"}), 401
+        return jsonify({"error": "Invalid credentials"}), 401
+
+    except Exception as e:
+        print(f"Login error: {str(e)}")
+        return jsonify({"error": "Login failed"}), 500
 
 
 @app.route("/api/verify-user", methods=["POST"])
 def verify_user():
-    data = request.get_json()
-    user = User.query.filter_by(username=data["username"]).first()
+    try:
+        data = request.get_json()
+        user = User.query.filter_by(username=data["username"]).first()
 
-    if user:
-        return jsonify({"message": "User found"}), 200
-    else:
-        return jsonify({"error": "Username not found"}), 404
+        if user:
+            return jsonify({"message": "User found"}), 200
+        else:
+            return jsonify({"error": "Username not found"}), 404
+    except Exception as e:
+        print(f"Verify user error: {str(e)}")
+        return jsonify({"error": "Verification failed"}), 500
 
 
 @app.route("/api/reset-password", methods=["POST"])
 def reset_password():
-    data = request.get_json()
-    user = User.query.filter_by(username=data["username"]).first()
+    try:
+        data = request.get_json()
+        user = User.query.filter_by(username=data["username"]).first()
 
-    if not user:
-        return jsonify({"error": "Username not found"}), 404
+        if not user:
+            return jsonify({"error": "Username not found"}), 404
 
-    # Verify security questions
-    answers = data["security_answers"]
-    if (
-        user.pet_name != answers["pet_name"].lower().strip()
-        or user.birth_city != answers["birth_city"].lower().strip()
-        or user.favorite_movie != answers["favorite_movie"].lower().strip()
-    ):
-        return jsonify({"error": "Security questions do not match"}), 400
+        # Verify security questions
+        answers = data["security_answers"]
+        if (
+            user.pet_name != answers["pet_name"].lower().strip()
+            or user.birth_city != answers["birth_city"].lower().strip()
+            or user.favorite_movie != answers["favorite_movie"].lower().strip()
+        ):
+            return jsonify({"error": "Security questions do not match"}), 400
 
-    # Update password
-    user.set_password(data["new_password"])
-    db.session.commit()
+        # Update password
+        user.set_password(data["new_password"])
+        db.session.commit()
 
-    return jsonify({"message": "Password reset successfully"}), 200
+        return jsonify({"message": "Password reset successfully"}), 200
+
+    except Exception as e:
+        print(f"Reset password error: {str(e)}")
+        return jsonify({"error": "Password reset failed"}), 500
 
 
 @app.route("/api/activities", methods=["GET"])
 @require_auth
 def get_activities():
-    days = request.args.get("days", 30, type=int)
-    start_date = date.today() - timedelta(days=days)
-    activities = (
-        Activity.query.filter(
-            Activity.user_id == request.current_user.id, Activity.date >= start_date
+    try:
+        days = request.args.get("days", 30, type=int)
+        start_date = date.today() - timedelta(days=days)
+        activities = (
+            Activity.query.filter(
+                Activity.user_id == request.current_user.id, Activity.date >= start_date
+            )
+            .order_by(Activity.date.desc())
+            .all()
         )
-        .order_by(Activity.date.desc())
-        .all()
-    )
-    return jsonify([activity.to_dict() for activity in activities])
+        return jsonify([activity.to_dict() for activity in activities])
+    except Exception as e:
+        print(f"Get activities error: {str(e)}")
+        return jsonify({"error": "Failed to get activities"}), 500
 
 
 @app.route("/api/activities", methods=["POST"])
 @require_auth
 def add_activity():
-    data = request.get_json()
+    try:
+        data = request.get_json()
 
-    # Check if activity exists for today
-    today = date.today()
-    existing = Activity.query.filter_by(
-        user_id=request.current_user.id, date=today
-    ).first()
+        # Check if activity exists for today
+        today = date.today()
+        existing = Activity.query.filter_by(
+            user_id=request.current_user.id, date=today
+        ).first()
 
-    if existing:
-        existing.applications_sent += data.get("applications_sent", 0)
-        existing.networking_contacts += data.get("networking_contacts", 0)
-        existing.skill_practice_hours += data.get("skill_practice_hours", 0.0)
-        existing.research_companies += data.get("research_companies", 0)
-        activity = existing
-    else:
-        activity = Activity(
-            user_id=request.current_user.id,
-            applications_sent=data.get("applications_sent", 0),
-            networking_contacts=data.get("networking_contacts", 0),
-            skill_practice_hours=data.get("skill_practice_hours", 0.0),
-            research_companies=data.get("research_companies", 0),
-        )
-        db.session.add(activity)
+        if existing:
+            existing.applications_sent += data.get("applications_sent", 0)
+            existing.networking_contacts += data.get("networking_contacts", 0)
+            existing.skill_practice_hours += data.get("skill_practice_hours", 0.0)
+            existing.research_companies += data.get("research_companies", 0)
+            activity = existing
+        else:
+            activity = Activity(
+                user_id=request.current_user.id,
+                applications_sent=data.get("applications_sent", 0),
+                networking_contacts=data.get("networking_contacts", 0),
+                skill_practice_hours=data.get("skill_practice_hours", 0.0),
+                research_companies=data.get("research_companies", 0),
+            )
+            db.session.add(activity)
 
-    db.session.commit()
-    return jsonify(activity.to_dict()), 201
+        db.session.commit()
+        return jsonify(activity.to_dict()), 201
+    except Exception as e:
+        db.session.rollback()
+        print(f"Add activity error: {str(e)}")
+        return jsonify({"error": "Failed to add activity"}), 500
 
 
 @app.route("/api/goals", methods=["GET"])
 @require_auth
 def get_goals():
-    goals = Goal.query.filter_by(user_id=request.current_user.id, active=True).all()
-    return jsonify([goal.to_dict() for goal in goals])
+    try:
+        goals = Goal.query.filter_by(user_id=request.current_user.id, active=True).all()
+        return jsonify([goal.to_dict() for goal in goals])
+    except Exception as e:
+        print(f"Get goals error: {str(e)}")
+        return jsonify({"error": "Failed to get goals"}), 500
 
 
 @app.route("/api/goals", methods=["POST"])
 @require_auth
 def set_goals():
-    data = request.get_json()
+    try:
+        data = request.get_json()
 
-    # Deactivate existing goals of same type
-    Goal.query.filter_by(
-        user_id=request.current_user.id, type=data["type"], active=True
-    ).update({"active": False})
+        # Deactivate existing goals of same type
+        Goal.query.filter_by(
+            user_id=request.current_user.id, type=data["type"], active=True
+        ).update({"active": False})
 
-    goal = Goal(
-        user_id=request.current_user.id,
-        type=data["type"],
-        applications_target=data.get("applications_target", 0),
-        networking_target=data.get("networking_target", 0),
-        skill_hours_target=data.get("skill_hours_target", 0.0),
-        research_target=data.get("research_target", 0),
-    )
+        goal = Goal(
+            user_id=request.current_user.id,
+            type=data["type"],
+            applications_target=data.get("applications_target", 0),
+            networking_target=data.get("networking_target", 0),
+            skill_hours_target=data.get("skill_hours_target", 0.0),
+            research_target=data.get("research_target", 0),
+        )
 
-    db.session.add(goal)
-    db.session.commit()
-    return jsonify(goal.to_dict()), 201
+        db.session.add(goal)
+        db.session.commit()
+        return jsonify(goal.to_dict()), 201
+    except Exception as e:
+        db.session.rollback()
+        print(f"Set goals error: {str(e)}")
+        return jsonify({"error": "Failed to set goals"}), 500
 
 
 @app.route("/api/stats", methods=["GET"])
 @require_auth
 def get_stats():
-    today = date.today()
-    week_start = today - timedelta(days=today.weekday())
+    try:
+        today = date.today()
+        week_start = today - timedelta(days=today.weekday())
 
-    # Today's activity
-    today_activity = Activity.query.filter_by(
-        user_id=request.current_user.id, date=today
-    ).first()
-    today_total = 0
-    if today_activity:
-        today_total = (
-            today_activity.applications_sent
-            + today_activity.networking_contacts
-            + today_activity.research_companies
+        # Today's activity
+        today_activity = Activity.query.filter_by(
+            user_id=request.current_user.id, date=today
+        ).first()
+        today_total = 0
+        if today_activity:
+            today_total = (
+                today_activity.applications_sent
+                + today_activity.networking_contacts
+                + today_activity.research_companies
+            )
+
+        # This week's activities
+        week_activities = Activity.query.filter(
+            Activity.user_id == request.current_user.id, Activity.date >= week_start
+        ).all()
+        week_total = sum(
+            a.applications_sent + a.networking_contacts + a.research_companies
+            for a in week_activities
         )
 
-    # This week's activities
-    week_activities = Activity.query.filter(
-        Activity.user_id == request.current_user.id, Activity.date >= week_start
-    ).all()
-    week_total = sum(
-        a.applications_sent + a.networking_contacts + a.research_companies
-        for a in week_activities
-    )
+        # Streak calculation
+        streak = 0
+        check_date = today
+        while True:
+            day_activity = Activity.query.filter_by(
+                user_id=request.current_user.id, date=check_date
+            ).first()
+            if day_activity and (
+                day_activity.applications_sent > 0
+                or day_activity.networking_contacts > 0
+                or day_activity.research_companies > 0
+            ):
+                streak += 1
+                check_date -= timedelta(days=1)
+            else:
+                break
 
-    # Streak calculation
-    streak = 0
-    check_date = today
-    while True:
-        day_activity = Activity.query.filter_by(
-            user_id=request.current_user.id, date=check_date
-        ).first()
-        if day_activity and (
-            day_activity.applications_sent > 0
-            or day_activity.networking_contacts > 0
-            or day_activity.research_companies > 0
-        ):
-            streak += 1
-            check_date -= timedelta(days=1)
-        else:
-            break
+        total_days = Activity.query.filter_by(user_id=request.current_user.id).count()
 
-    total_days = Activity.query.filter_by(user_id=request.current_user.id).count()
-
-    return jsonify(
-        {
-            "today_activities": today_total,
-            "week_activities": week_total,
-            "current_streak": streak,
-            "total_days_logged": total_days,
-        }
-    )
+        return jsonify(
+            {
+                "today_activities": today_total,
+                "week_activities": week_total,
+                "current_streak": streak,
+                "total_days_logged": total_days,
+            }
+        )
+    except Exception as e:
+        print(f"Get stats error: {str(e)}")
+        return jsonify({"error": "Failed to get stats"}), 500
 
 
 @app.route("/api/debug-user/<username>")
 def debug_user(username):
-    user = User.query.filter_by(username=username).first()
-    if user:
+    try:
+        user = User.query.filter_by(username=username).first()
+        if user:
+            return jsonify(
+                {
+                    "username": user.username,
+                    "password_hash": user.password_hash,
+                    "pet_name": user.pet_name,
+                    "birth_city": user.birth_city,
+                    "favorite_movie": user.favorite_movie,
+                }
+            )
+        return jsonify({"error": "user not found"}), 404
+    except Exception as e:
+        print(f"Debug user error: {str(e)}")
+        return jsonify({"error": "Debug failed"}), 500
+
+
+# Health check endpoint for Railway
+@app.route("/health")
+def health_check():
+    try:
+        # Test database connection
+        db.session.execute(db.text("SELECT 1"))
+        return jsonify({"status": "healthy", "database": "connected"}), 200
+    except Exception as e:
+        return jsonify({"status": "unhealthy", "error": str(e)}), 500
+
+
+# Manual table creation endpoint (for debugging)
+@app.route("/api/init-db", methods=["POST"])
+def init_db_endpoint():
+    try:
+        db.create_all()
+
+        # Verify tables exist
+        tables = db.inspect(db.engine).get_table_names()
         return jsonify(
-            {
-                "username": user.username,
-                "password_hash": user.password_hash,
-                "pet_name": user.pet_name,
-                "birth_city": user.birth_city,
-                "favorite_movie": user.favorite_movie,
-            }
-        )
-    return jsonify({"error": "user not found"}), 404
+            {"message": "Database initialized successfully", "tables": tables}
+        ), 200
+    except Exception as e:
+        return jsonify({"error": f"Failed to initialize database: {str(e)}"}), 500
 
 
 if __name__ == "__main__":
